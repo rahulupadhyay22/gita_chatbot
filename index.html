@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhagavad Gita AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-container::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        #chat-container::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 20px;
+        }
+        .ai-message .prose { color: white; }
+        .ai-message .prose ul { list-style-type: disc; padding-left: 1.5rem; }
+        .ai-message .prose li { margin-bottom: 0.5rem; }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { color: white; }
+        .prose strong { color: #93c5fd; }
+        .prose a { color: #60a5fa; }
+        .action-btn {
+            background-color: #374151; color: #d1d5db;
+            padding: 6px 10px; border-radius: 6px; border: 1px solid #4b5563;
+            cursor: pointer; margin-top: 12px; margin-right: 8px; font-size: 0.8rem;
+            font-weight: 500; transition: background-color 0.3s, border-color 0.3s;
+        }
+        .action-btn:hover { background-color: #4b5563; border-color: #6b7280; }
+        .verse-btn, .theme-btn {
+            background-color: #2563eb; color: white; padding: 8px 12px;
+            border-radius: 6px; border: none; cursor: pointer;
+            font-weight: 500; transition: background-color 0.3s;
+        }
+        .verse-btn { margin-top: 8px; }
+        .theme-btn { background-color: #374151; border: 1px solid #4b5563; }
+        .verse-btn:hover, .theme-btn:hover { background-color: #1d4ed8; }
+        .favorite-btn.favorited { color: #facc15; } /* Yellow star for favorited */
+        #mic-btn.recording {
+            background-color: #dc2626; /* Red-600 */
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col min-h-screen">
+
+    <header class="bg-gray-800/50 backdrop-blur-sm shadow-lg sticky top-0 z-20">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="w-1/3 flex justify-start">
+                <button id="favorites-btn" class="action-btn">❤️ My Favorites</button>
+            </div>
+            <div class="w-1/3 text-center">
+                <h1 class="text-2xl font-bold text-blue-300">Bhagavad Gita AI</h1>
+                <p class="text-sm text-gray-400">Ancient wisdom, modern conversations.</p>
+            </div>
+            <div class="w-1/3 flex justify-end">
+                 <button id="summarize-btn" class="action-btn">✨ Summarize My Journey</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 flex flex-col">
+        <div id="chat-container" class="flex-grow bg-gray-800 rounded-xl shadow-inner overflow-y-auto p-4 space-y-4 mb-4">
+            <div class="flex justify-start">
+                <div class="bg-gray-700 rounded-lg p-3 max-w-lg ai-message">
+                    <p class="text-sm">Namaste! I am your guide to the wisdom of the Bhagavad Gita. How may I help you on your spiritual journey today? You can ask a question, or explore verses by the themes below.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="theme-navigation" class="mb-4">
+            <h3 class="text-center text-gray-400 text-sm mb-2">Explore by Theme</h3>
+            <div id="theme-buttons" class="flex flex-wrap justify-center gap-2">
+                <button class="theme-btn" data-theme="duty">Duty (Dharma)</button>
+                <button class="theme-btn" data-theme="action">Action (Karma)</button>
+                <button class="theme-btn" data-theme="knowledge">Knowledge</button>
+                <button class="theme-btn" data-theme="devotion">Devotion</button>
+                <button class="theme-btn" data-theme="conflict">Conflict</button>
+                <button class="theme-btn" data-theme="peace">Peace</button>
+            </div>
+        </div>
+
+        <div id="loading-indicator" class="hidden flex items-center justify-center mb-4">
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style="animation-delay: 0s;"></div>
+                <div class="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div>
+                <div class="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
+                <span class="text-gray-400 text-sm">Gita AI is thinking...</span>
+            </div>
+        </div>
+
+
+        <div class="bg-gray-800 rounded-xl shadow-lg p-2">
+            <div class="flex items-center">
+                <input type="text" id="user-input" class="flex-grow bg-gray-700 border border-gray-600 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="Ask a question or type a topic...">
+                <button id="send-btn" class="ml-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+                <button id="mic-btn" class="ml-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div id="verse-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-30 p-4">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-full overflow-y-auto p-6 relative">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="modal-content" class="prose prose-invert max-w-none">
+                </div>
+            <div id="modal-actions" class="mt-4 pt-4 border-t border-gray-700 flex items-center gap-4">
+                <button id="favorite-verse-btn" class="action-btn favorite-btn text-2xl p-2">☆</button>
+                <button id="copy-quote-btn" class="action-btn">📋 Copy Quote for Sharing</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // --- Gita Data (Embedded) ---
+        const GITA_DATA = [
+          { "chapter_number": 2, "verse_number": 14, "sloka": "मात्रास्पर्शास्तु कौन्तेय शीतोष्णसुखदुःखदाः | आगमापायिनोऽनित्यास्तांस्तितिक्षस्व भारत ||2-14||", "transliteration": "mātrāsparśāstu kaunteya śītoṣṇasukhaduḥkhadāḥ | āgamāpāyino'nityāstāṁstitikṣasva bhārata ||2-14||", "meaning": "O son of Kunti, the nonpermanent appearance of happiness and distress, and their disappearance in due course, are like the appearance and disappearance of winter and summer seasons. They arise from sense perception, O scion of Bharata, and one must learn to tolerate them without being disturbed." },
+          { "chapter_number": 2, "verse_number": 47, "sloka": "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन | मा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ||2-47||", "transliteration": "karmaṇyevādhikāraste mā phaleṣu kadācana | mā karmaphalaheturbhūrmā te saṅgo'stvakarmaṇi", "meaning": "You have a right to perform your prescribed duty, but you are not entitled to the fruits of action. Never consider yourself the cause of the results of your activities, and never be attached to not doing your duty." },
+          { "chapter_number": 2, "verse_number": 48, "sloka": "योगस्थः कुरु कर्माणि सङ्गं त्यक्त्वा धनञ्जय | सिद्ध्यसिद्ध्योः समो भूत्वा समत्वं योग उच्यते ||2-48||", "transliteration": "yogasthaḥ kuru karmāṇi saṅgaṁ tyaktvā dhanañjaya | siddhyasiddhyoḥ samo bhūtvā samatvaṁ yoga ucyate ||2-48||", "meaning": "Perform your duty equipoised, O Arjuna, abandoning all attachment to success or failure. Such equanimity is called yoga." },
+          { "chapter_number": 3, "verse_number": 5, "sloka": "न हि कश्चित्क्षणमपि जातु तिष्ठत्यकर्मकृत् | कार्यते ह्यवशः कर्म सर्वः प्रकृतिजैर्गुणैः ||3-5||", "transliteration": "na hi kaścitkṣaṇamapi jātu tiṣṭhatyakarmakṛt | kāryate hyavaśaḥ karma sarvaḥ prakṛtijairguṇaiḥ ||3-5||", "meaning": "Everyone is forced to act helplessly according to the qualities he has acquired from the modes of material nature; therefore no one can refrain from doing something, not even for a moment." },
+          { "chapter_number": 9, "verse_number": 26, "sloka": "पत्रं पुष्पं फलं तोयं यो मे भक्त्या प्रयच्छति | तदहं भक्त्युपहृतमश्नामि प्रयतात्मनः ||9-26||", "transliteration": "patraṁ puṣpaṁ phalaṁ toyaṁ yo me bhaktyā prayacchati | tadahaṁ bhaktyupahṛtamaśnāmi prayatātmanaḥ ||9-26||", "meaning": "If one offers Me with love and devotion a leaf, a flower, a fruit or water, I will accept it." },
+          { "chapter_number": 12, "verse_number": 13, "sloka": "अद्वेष्टा सर्वभूतानां मैत्रः करुण एव च | निर्ममो निरहङ्कारः समदुःखसुखः क्षमी ||12-13||", "transliteration": "adveṣṭā sarvabhūtānāṁ maitraḥ karuṇa eva ca | nirmamo nirahaṅkāraḥ samaduḥkhasukhaḥ kṣamī ||12-13||", "meaning": "One who is not envious but is a kind friend to all living entities, who does not think himself a proprietor and is free from false ego, who is equal in both happiness and distress, who is tolerant... such a devotee of Mine is very dear to Me." },
+          { "chapter_number": 18, "verse_number": 66, "sloka": "सर्वधर्मान्परित्यज्य मामेकं शरणं व्रज | अहं त्वा सर्वपापेभ्यो मोक्षयिष्यामि मा शुचः ||18-66||", "transliteration": "sarvadharmānparityajya māmekaṁ śaraṇaṁ vraja | ahaṁ tvā sarvapāpebhyo mokṣayiṣyāmi mā śucaḥ", "meaning": "Abandon all varieties of religion and just surrender unto Me. I shall deliver you from all sinful reactions. Do not fear." }
+        ];
+
+        // --- DOM Elements ---
+        const dom = {
+            chatContainer: document.getElementById('chat-container'),
+            userInput: document.getElementById('user-input'),
+            sendBtn: document.getElementById('send-btn'),
+            micBtn: document.getElementById('mic-btn'),
+            summarizeBtn: document.getElementById('summarize-btn'),
+            favoritesBtn: document.getElementById('favorites-btn'),
+            themeButtons: document.getElementById('theme-buttons'),
+            loadingIndicator: document.getElementById('loading-indicator'),
+            verseModal: document.getElementById('verse-modal'),
+            closeModalBtn: document.getElementById('close-modal-btn'),
+            modalContent: document.getElementById('modal-content'),
+            favoriteVerseBtn: document.getElementById('favorite-verse-btn'),
+            copyQuoteBtn: document.getElementById('copy-quote-btn')
+        };
+        
+        // --- State ---
+        let chatHistory = [{ role: "user", parts: [{ text: "You are an AI assistant knowledgeable about the Bhagavad Gita. Your role is to answer user questions by first finding a relevant verse and then explaining it in a compassionate, wise, and conversational manner. Always be encouraging and supportive." }] }, { role: "model", parts: [{ text: "Namaste! I understand my role. I am ready to guide users through the timeless wisdom of the Bhagavad Gita." }] }];
+        let isRecording = false;
+        
+        // --- Speech Recognition & Synthesis ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            if (recognition) {
+                setupSpeechRecognition();
+            } else {
+                dom.micBtn.disabled = true;
+                dom.micBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            dom.sendBtn.addEventListener('click', handleUserInput);
+            dom.userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUserInput(); });
+            dom.micBtn.addEventListener('click', toggleRecording);
+            dom.summarizeBtn.addEventListener('click', handleSummaryRequest);
+            dom.favoritesBtn.addEventListener('click', handleFavoritesRequest);
+            dom.closeModalBtn.addEventListener('click', () => dom.verseModal.classList.add('hidden'));
+            
+            dom.themeButtons.addEventListener('click', (e) => {
+                if(e.target.matches('.theme-btn')) {
+                    handleThemeRequest(e.target.dataset.theme);
+                }
+            });
+
+            dom.chatContainer.addEventListener('click', (e) => {
+                const verseBtn = e.target.closest('.verse-btn');
+                const deepenBtn = e.target.closest('.deepen-btn');
+                const affirmationBtn = e.target.closest('.affirmation-btn');
+
+                if (verseBtn) showVerseDetails(verseBtn.dataset.chapter, verseBtn.dataset.verse);
+                else if (deepenBtn) handleDeepenRequest(deepenBtn.closest('.ai-message'));
+                else if (affirmationBtn) handleAffirmationRequest(affirmationBtn.closest('.ai-message'));
+            });
+
+            dom.favoriteVerseBtn.addEventListener('click', toggleFavorite);
+            dom.copyQuoteBtn.addEventListener('click', copyQuote);
+        }
+
+        // --- Speech Recognition Setup ---
+        function setupSpeechRecognition() {
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                dom.userInput.value = speechResult;
+                stopRecording();
+                handleUserInput();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                stopRecording();
+            };
+            
+            recognition.onend = () => {
+                if(isRecording) {
+                   stopRecording();
+                }
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) return;
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        function startRecording() {
+            isRecording = true;
+            dom.micBtn.classList.add('recording');
+            recognition.start();
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            dom.micBtn.classList.remove('recording');
+            recognition.stop();
+        }
+
+        // --- Core Chat Logic ---
+        async function handleUserInput() {
+            const query = dom.userInput.value.trim();
+            if (!query) return;
+            addMessageToChat('user', query);
+            dom.userInput.value = '';
+            dom.loadingIndicator.classList.remove('hidden');
+            try {
+                const sentiment = await analyzeSentiment(query);
+                const relevantVerses = findRelevantVerses(query);
+                const versesContext = relevantVerses.map(v => `Verse ${v.chapter_number}.${v.verse_number}: "${v.meaning}"`).join('\n');
+                
+                // Updated prompt to request bullet points
+                const prompt = `The user seems to be feeling ${sentiment}. A user is asking: "${query}". Based on the teachings of the Bhagavad Gita, provide a wise and compassionate response as a series of bullet points (using markdown like * point 1), keeping their emotional state in mind. Each point should be a concise piece of wisdom. Here are some relevant verses to guide you:\n${versesContext}\nSynthesize the wisdom to answer. After the bullet points, conclude by citing the single most relevant verse and offering a button like this: <button class="verse-btn" data-chapter="{chapter_number}" data-verse="{verse_number}">View Verse {chapter_number}.{verse_number}</button>`;
+                
+                const aiResponse = await generateTextWithGemini(prompt);
+                const formattedResponse = aiResponse.replace(/\* /g, '<ul><li>').replace(/(\n\* |$)/g, '</li></ul>').replace(/<\/ul><ul>/g, '');
+
+
+                addMessageToChat('ai', formattedResponse, { userQuery: query });
+            } catch (error) {
+                handleError(error, "processing your question");
+            } finally {
+                dom.loadingIndicator.classList.add('hidden');
+            }
+        }
+        
+        async function analyzeSentiment(text) {
+            try {
+                const prompt = `Analyze the sentiment of the following user query. Respond with a single word: "anxious", "curious", "confused", "grateful", "sad", or "neutral". Query: "${text}"`;
+                const sentimentHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const response = await generateTextWithGemini(prompt, false, sentimentHistory);
+                return response.trim().toLowerCase();
+            } catch (error) {
+                console.error("Sentiment analysis failed:", error);
+                return "neutral";
+            }
+        }
+
+        function findRelevantVerses(query) {
+            const queryWords = new Set(query.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            const scoredVerses = GITA_DATA.map(verse => {
+                const verseText = `${verse.meaning.toLowerCase()} ${verse.transliteration.toLowerCase()}`;
+                let score = 0;
+                queryWords.forEach(word => { if (verseText.includes(word)) score++; });
+                return { ...verse, score };
+            });
+            scoredVerses.sort((a, b) => b.score - a.score);
+            return scoredVerses.slice(0, 3);
+        }
+
+        function handleThemeRequest(theme) {
+            const themeKeywords = {
+                duty: ['duty', 'dharma', 'prescribed'],
+                action: ['action', 'karma', 'activities', 'work'],
+                knowledge: ['knowledge', 'wise', 'perception', 'realize'],
+                devotion: ['devotion', 'offers me', 'surrender'],
+                conflict: ['distress', 'disturbed', 'lament'],
+                peace: ['peace', 'equanimity', 'tolerant', 'equal']
+            };
+            const keywords = themeKeywords[theme] || [];
+            const verses = GITA_DATA.filter(v => keywords.some(kw => v.meaning.toLowerCase().includes(kw)));
+            
+            let html = `<h3 class="text-lg font-semibold text-blue-300 mb-2">Verses on ${theme.charAt(0).toUpperCase() + theme.slice(1)}:</h3>`;
+            if (verses.length > 0) {
+                html += verses.map(v => `<div class="p-2 border-b border-gray-700">
+                    <p>"${v.meaning.substring(0, 100)}..."</p>
+                    <button class="verse-btn text-sm py-1 px-2" data-chapter="${v.chapter_number}" data-verse="${v.verse_number}">View Verse ${v.chapter_number}.${v.verse_number}</button>
+                </div>`).join('');
+            } else {
+                html += `<p>No specific verses found for this theme in the sample data.</p>`;
+            }
+            addMessageToChat('system', html);
+        }
+
+        function handleFavoritesRequest() {
+            const favorites = getFavorites();
+            let html = `<h3 class="text-lg font-semibold text-blue-300 mb-2">Your Favorite Verses:</h3>`;
+            if(favorites.length > 0) {
+                const favVerses = favorites.map(id => GITA_DATA.find(v => `${v.chapter_number}.${v.verse_number}` === id)).filter(Boolean);
+                html += favVerses.map(v => `<div class="p-2 border-b border-gray-700">
+                    <p>"${v.meaning.substring(0, 100)}..."</p>
+                    <button class="verse-btn text-sm py-1 px-2" data-chapter="${v.chapter_number}" data-verse="${v.verse_number}">View Verse ${v.chapter_number}.${v.verse_number}</button>
+                </div>`).join('');
+            } else {
+                html += `<p>You haven't marked any verses as favorite yet. Click the ☆ in the verse detail view to save one.</p>`;
+            }
+            addMessageToChat('system', html);
+        }
+
+        async function handleSummaryRequest() {
+            dom.loadingIndicator.classList.remove('hidden');
+            try {
+                const conversation = chatHistory.map(entry => `${entry.role}: ${entry.parts[0].text}`).join('\n\n');
+                const prompt = `Act as a wise guide. Based on the following conversation, identify main themes, summarize the key wisdom, and offer a gentle reflection. Keep it concise.\n\nConversation:\n${conversation}`;
+                const summary = await generateTextWithGemini(prompt, false);
+                addMessageToChat('ai', `<h3>A Reflection on Your Journey...</h3>${summary}`);
+            } catch (error) {
+                handleError(error, "generating your summary");
+            } finally {
+                dom.loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        async function handleDeepenRequest(messageBubble) {
+            dom.loadingIndicator.classList.remove('hidden');
+            try {
+                const prompt = `A user wants to "go deeper" on this topic. Elaborate on the AI's last response with a practical example, analogy, or related concept.\n\nOriginal AI Response:\n${messageBubble.querySelector('.ai-content').innerHTML}`;
+                const deeperWisdom = await generateTextWithGemini(prompt);
+                addMessageToChat('ai', deeperWisdom, { userQuery: messageBubble.dataset.userQuery });
+            } catch(error) {
+                handleError(error, "going deeper");
+            } finally {
+                dom.loadingIndicator.classList.add('hidden');
+            }
+        }
+        
+        async function handleAffirmationRequest(messageBubble) {
+            dom.loadingIndicator.classList.remove('hidden');
+            try {
+                const prompt = `Based on the user's question "${messageBubble.dataset.userQuery}" and the Gita wisdom below, create a short, personal, positive affirmation. Present only the affirmation in quotes.\n\nAI Response:\n${messageBubble.querySelector('.ai-content').innerHTML}`;
+                const affirmation = await generateTextWithGemini(prompt);
+                addMessageToChat('ai', `An affirmation for your practice:\n\n<p class="text-lg italic text-blue-200 text-center p-4">${affirmation}</p>`);
+            } catch(error) {
+                handleError(error, "creating your affirmation");
+            } finally {
+                dom.loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function getFavorites() {
+            return JSON.parse(localStorage.getItem('gita_favorites') || '[]');
+        }
+
+        function toggleFavorite() {
+            const btn = dom.favoriteVerseBtn;
+            const verseId = btn.dataset.verseId;
+            let favorites = getFavorites();
+            if (favorites.includes(verseId)) {
+                favorites = favorites.filter(id => id !== verseId);
+                btn.classList.remove('favorited');
+            } else {
+                favorites.push(verseId);
+                btn.classList.add('favorited');
+            }
+            localStorage.setItem('gita_favorites', JSON.stringify(favorites));
+        }
+
+        function copyQuote() {
+            const verseId = dom.copyQuoteBtn.dataset.verseId;
+            const verse = GITA_DATA.find(v => `${v.chapter_number}.${v.verse_number}` === verseId);
+            if (!verse) return;
+
+            const quote = `"${verse.meaning}"\n\n- Bhagavad Gita, ${verse.chapter_number}.${verse.verse_number}`;
+            navigator.clipboard.writeText(quote).then(() => {
+                dom.copyQuoteBtn.textContent = 'Copied!';
+                setTimeout(() => { dom.copyQuoteBtn.textContent = '📋 Copy Quote for Sharing'; }, 2000);
+            });
+        }
+        
+        async function generateTextWithGemini(prompt, addToHistory = true, history = chatHistory) {
+            const tempHistory = [...history, { role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: tempHistory };
+            const apiKey = ""; // IMPORTANT: Replace with your actual API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates && result.candidates[0].content?.parts?.length > 0) {
+                const text = result.candidates[0].content.parts[0].text;
+                if (addToHistory) {
+                    history.push({ role: "user", parts: [{ text: prompt }] }, { role: "model", parts: [{ text }] });
+                }
+                return text;
+            } else {
+                 throw new Error(`Content generation stopped. Reason: ${result.candidates?.[0]?.finishReason || 'Unknown'}`);
+            }
+        }
+
+        function addMessageToChat(sender, message, context = {}) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('flex', 'w-full');
+            const messageBubble = document.createElement('div');
+            messageBubble.classList.add('p-3', 'rounded-lg', 'prose');
+
+            if (sender === 'user') {
+                messageWrapper.classList.add('justify-end');
+                messageBubble.classList.add('bg-blue-600', 'text-white', 'max-w-lg');
+                messageBubble.textContent = message;
+            } else {
+                messageWrapper.classList.add('justify-start');
+                messageBubble.classList.add('bg-gray-700', 'text-white', 'max-w-xl');
+                if (sender === 'ai') messageBubble.classList.add('ai-message');
+                if (context.userQuery) messageBubble.dataset.userQuery = context.userQuery;
+
+                let contentHTML = `<div class="ai-content">${message}</div>`;
+                if (context.userQuery) {
+                    contentHTML += `<div><button class="action-btn deepen-btn">✨ Go Deeper</button><button class="action-btn affirmation-btn">✨ Create Affirmation</button></div>`;
+                }
+                messageBubble.innerHTML = contentHTML;
+            }
+            messageWrapper.appendChild(messageBubble);
+            dom.chatContainer.appendChild(messageWrapper);
+            dom.chatContainer.scrollTop = dom.chatContainer.scrollHeight;
+        }
+
+        function showVerseDetails(chapter, verse) {
+            const verseId = `${chapter}.${verse}`;
+            const data = GITA_DATA.find(v => `${v.chapter_number}.${v.verse_number}` === verseId);
+            if (data) {
+                dom.modalContent.innerHTML = `<h2 class="text-2xl font-bold mb-2 text-blue-300">Chapter ${data.chapter_number}, Verse ${data.verse_number}</h2><p class="text-3xl text-center font-semibold my-6" style="font-family: 'Noto Sans Devanagari', sans-serif;">${data.sloka}</p><h3 class="text-xl font-semibold mt-6 mb-2 border-b border-gray-600 pb-1">Transliteration</h3><p class="italic text-gray-300">${data.transliteration}</p><h3 class="text-xl font-semibold mt-6 mb-2 border-b border-gray-600 pb-1">Meaning</h3><p>${data.meaning}</p>`;
+                dom.verseModal.classList.remove('hidden');
+                dom.verseModal.classList.add('flex');
+                dom.favoriteVerseBtn.textContent = '☆'; // Reset to un-favorited state
+                dom.copyQuoteBtn.textContent = '📋 Copy Quote for Sharing';
+                dom.favoriteVerseBtn.dataset.verseId = verseId;
+                dom.copyQuoteBtn.dataset.verseId = verseId;
+                dom.favoriteVerseBtn.classList.toggle('favorited', getFavorites().includes(verseId));
+            }
+        }
+
+        function handleError(error, action) {
+            console.error(`Error ${action}:`, error);
+            addMessageToChat('system', `<p class="text-red-400">I apologize, I encountered an error while ${action}. Please try again.</p>`);
+        }
+    </script>
+</body>
+</html>
